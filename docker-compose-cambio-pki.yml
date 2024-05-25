@@ -1,0 +1,38 @@
+# Para que este contenedor sea más customizable, hemos decidido crear este archivo en 
+# que se incluyen los cambios necesarios a realizar para que el servidor DinD 
+# utilice unos certificados y claves TLS diferentes a los que vienen cargados en la 
+# imagen por defecto, aumentando la seguridad considerablemente debido a que un 
+# contenedor creado a partir de una imagen estática siempre partirá del mismo estado 
+# inicial, y eso hace que los certificados y las claves privadas que la imagen tiene por 
+# defecto sean siempre las mismas a menos que sean sobrescritas.
+
+# Asegúrate de usar la imagen con las claves por defecto solamente en un entorno de 
+# prueba, ya que de lo contrario un atacante que también haya utilizado esta misma imagen
+# ha podido obtener la clave privada del servidor y del cliente, dando lugar a un amplio
+# abanico de posibles ataques.
+
+### IMPORTANTE: las claves privadas no deben estar protegidas por passphrase, de lo 
+# contrario, el daemon de Docker no podrá utilizarlas y no arrancará.
+
+# Por tanto, para usar esta imagen, debes crear los archivos con, al menos, el 
+# certificado del CA, y el certificado y la clave privada del servidor Docker, bien en 
+# las rutas que verás a continuación o en las que consideres, siempre y cuando edites 
+# este archivo posteriormente. Por último, ejecuta lo siguiente:
+
+  #> docker compose -f docker-compose.yml -f docker-compose-cambio-pki.yml up -d
+
+# A continuación se muestran las posibles rutas a los archivos que utilizarás para 
+# proporcionar credenciales al servidor. Hemos supuesto que crearás un subdirectorio 
+# dentro de esta carpeta, pero puedes cambiar cualquiera de estas rutas a tu gusto.
+
+# La clave privada debería ser tratada como un secreto, para que Docker la utilice 
+# internamente pero la proteja para evitar filtraciones indebidas. Pero somos conscientes de que el uso de las directovas configs y secrets causa conflictos con algunas versiones de Docker, por lo que confiamos en que uses este archivo Docker Compose con la máxima cautela, ya que montar la clave privada del certificado en plano de esta manera es dado a posibles ataques.
+
+services:
+  docker-dind:
+    # si cambias las rutas en que los certificados y claves se montan en el contenedor que se muestran a continuación, asegúrate de cambiar también
+    # las rutas a las que apuntan las directivas "tlscacert", "tlscert" y "tlskey" del
+    # archivo daemon.json de la carpeta ../configuracion-docker
+    volumes:
+      - ./certs/ca:/certs/ca:ro
+      - ./certs/servidor:/certs/servidor

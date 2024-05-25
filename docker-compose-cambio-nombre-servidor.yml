@@ -1,0 +1,69 @@
+# Para que este contenedor sea más customizable, hemos decidido crear este archivo en 
+# que se incluyen los cambios necesarios que se deben realizar para cambiar el nombre del 
+# servidor Docker, que por defecto es "docker-dind".
+
+# El nombre del contenedor no cambia, pero el servidor comenzará a responder al nuevo 
+# nombre que indiques, en lugar de a "docker-dind".
+
+# Para poder hacerlo, primero debes realizar una serie de pasos. Puedes hacerlo de dos 
+# formas:
+
+##########
+
+# Descargar el repositorio 3.11.1-docker-dind-seguro, y construir de nuevo la imagen a partir del Dockerfile, habiendo editado el archivo 
+# "nombre_servidor.txt" para que contenga el nuevo nombre. Esto es porque los campos 
+# CN de los certificados del contenedor tienen que reflejar el cambio. De lo contrario, 
+# si utilizas la imagen original, el contenedor enviará a los clientes certificados con 
+# el nombre "docker-dind" en el campo CN, y como éstos estarán esperando que en dicho 
+# campo figure el nombre del alias de red que tú has especificado, resultará en un error.
+
+# Podrías construir la imagen de la siguiente forma:
+
+  #> echo "nuevo-nombre-del-servidor" > nombre_servidor.txt
+  #> docker build -t docker-dind:seguro-nuevo-nombre .
+
+##########
+
+# Otra posibilidad consiste en la creación por tus propios métodos de los certificados y 
+# claves necesarias, y facilitarle al contenedor la información de dichos archivos usando 
+# el fichero "docker-compose-cambio-pki.yml" de esta misma carpeta. Este método no 
+# requiere la creación de una nueva imagen, simplemente requiere que cuando vayas a 
+# ejecutar Docker Compose incluyas todos los archivos .yml de esta carpeta, de la 
+# siguiente forma:
+
+  #> docker compose -f docker-compose.yml -f docker-compose-cambio-nombre-servidor.yml \
+  #    -f docker-compose-cambio-pki.yml up
+
+##########
+
+# Independientemente de cuál de los anteriores métodos hayas utilizado, 
+# puedes o bien exportar el nuevo nombre a una variable de entorno llamada 
+# NOMBRE_SERVIDOR, o bien editar este archivo, para que allá donde aparezca: 
+# ${NOMBRE_SERVIDOR}
+# aparezca el nuevo nombre.
+
+# Nosotros recomendamos la opción de la variable de entorno, que se resolvería de la 
+# siguente forma:
+
+  #> export NOMBRE_SERVIDOR=$(cat nombre_servidor.txt)
+
+# Finalmente, para levantar el servidor DinD, utiliza este archivo como un override de 
+# Docker Compose, partiendo del archivo original. De la siguiente forma:
+
+  #> docker compose -f docker-compose.yml -f docker-compose-cambio-nombre-servidor.yml up
+services:
+  docker-dind:
+    # Si para cambiar el nombre del servidor has construido una nueva imagen, en esta 
+    # línea debes indicar el nombre de dicha imagen. Si has usado el otro método, 
+    # comenta la línea.
+    # Por ejemplo, si al construir la imagen has introducido el siguiente comando:
+
+      #> docker build -t docker-dind:seguro-nuevo-nombre .
+
+    # entonces la siguiente línea tendrá el siguiente aspecto:
+    image: docker-dind:seguro-nuevo-nombre
+
+    networks:
+      red-1:
+        aliases:
+          - ${NOMBRE_SERVIDOR}
